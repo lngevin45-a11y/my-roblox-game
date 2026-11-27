@@ -55,8 +55,19 @@ function Greybox.generate()
 	local segW = M.LaneLength / biomeCount
 	for i, biome in ipairs(Config.BIOMES) do
 		local cx = -laneHalfLen + segW * (i - 0.5)
-		makePart("Lane_" .. biome.name, Vector3.new(segW, 2, M.LaneWidth), CFrame.new(cx, -1, 0), biome.color, world, true)
+		-- Top surface at y = 0.1: just ABOVE the default Baseplate top (y = 0),
+		-- otherwise the lane z-fights with it and vanishes into patches.
+		makePart("Lane_" .. biome.name, Vector3.new(segW, 1, M.LaneWidth), CFrame.new(cx, -0.4, 0), biome.color, world, true)
 	end
+
+	-- Spawn pad at the base camp (start of the lane).
+	local spawnLoc = Instance.new("SpawnLocation")
+	spawnLoc.Size = Vector3.new(12, 1, 12)
+	spawnLoc.Position = Vector3.new(-laneHalfLen + 14, 0.6, 0)
+	spawnLoc.Anchored = true
+	spawnLoc.Neutral = true
+	spawnLoc.Color = Color3.fromRGB(235, 235, 235)
+	spawnLoc.Parent = world
 
 	-- Folders for dynamic objects
 	local creaturesFolder = Instance.new("Folder"); creaturesFolder.Name = "Creatures"; creaturesFolder.Parent = world
@@ -72,20 +83,33 @@ function Greybox.generate()
 	-- Builds a low wooden fence (visual only) around a plot footprint.
 	local function buildFence(plotModel, cx, cz, w, d)
 		local fh, post, step = 2, 0.4, 4
-		local function postAt(px, pz)
+		local function fencePart(size, pos)
 			local p = Instance.new("Part")
-			p.Size = Vector3.new(post, fh, post)
+			p.Size = size
 			p.Color = Config.FENCE_COLOR
 			p.Material = Enum.Material.Wood
 			p.Anchored = true
 			p.CanCollide = false
-			p.Position = Vector3.new(px, 1 + fh / 2, pz)
+			p.Position = pos
 			p.Parent = plotModel
 		end
 		local x0, x1 = cx - w / 2, cx + w / 2
 		local z0, z1 = cz - d / 2, cz + d / 2
-		for x = x0, x1, step do postAt(x, z0); postAt(x, z1) end
-		for z = z0, z1, step do postAt(x0, z); postAt(x1, z) end
+		for x = x0, x1, step do
+			fencePart(Vector3.new(post, fh, post), Vector3.new(x, 1 + fh / 2, z0))
+			fencePart(Vector3.new(post, fh, post), Vector3.new(x, 1 + fh / 2, z1))
+		end
+		for z = z0, z1, step do
+			fencePart(Vector3.new(post, fh, post), Vector3.new(x0, 1 + fh / 2, z))
+			fencePart(Vector3.new(post, fh, post), Vector3.new(x1, 1 + fh / 2, z))
+		end
+		-- Horizontal rails so it reads as a fence, not scattered sticks.
+		for _, ry in ipairs({ 0.9, 1.5 }) do
+			fencePart(Vector3.new(w, 0.22, 0.22), Vector3.new(cx, ry, z0))
+			fencePart(Vector3.new(w, 0.22, 0.22), Vector3.new(cx, ry, z1))
+			fencePart(Vector3.new(0.22, 0.22, d), Vector3.new(x0, ry, cz))
+			fencePart(Vector3.new(0.22, 0.22, d), Vector3.new(x1, ry, cz))
+		end
 	end
 
 	for i = 1, M.PlotCount do
@@ -110,18 +134,19 @@ function Greybox.generate()
 		cd.MaxActivationDistance = 12
 		cd.Parent = cashPad
 
-		-- Timed shield dome (visual only for the slice)
-		local domeSize = math.max(M.PlotWidth, M.PlotDepth) + 6
+		-- Timed shield dome (visual only): a soft ForceField shimmer sized to
+		-- the plot, hidden until the plot is owned and shielded.
+		local domeSize = math.max(M.PlotWidth, M.PlotDepth)
 		local shield = Instance.new("Part")
 		shield.Name = "Shield"
 		shield.Shape = Enum.PartType.Ball
-		shield.Size = Vector3.new(domeSize, domeSize, M.PlotDepth + 10)
-		shield.CFrame = CFrame.new(x, 6, plotZ)
+		shield.Size = Vector3.new(domeSize, domeSize * 0.7, M.PlotDepth)
+		shield.CFrame = CFrame.new(x, 3, plotZ)
 		shield.Color = Config.COLORS.Shield
-		shield.Transparency = 0.5
+		shield.Transparency = 1
 		shield.Anchored = true
 		shield.CanCollide = false
-		shield.Material = Enum.Material.Glass
+		shield.Material = Enum.Material.ForceField
 		shield.Parent = plotModel
 
 		local sb = Instance.new("BillboardGui")

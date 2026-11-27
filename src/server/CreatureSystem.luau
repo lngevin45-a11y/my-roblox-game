@@ -412,7 +412,7 @@ local function updateShields(G)
 				plot.shield.Transparency = 1
 				plot.shieldLabel.Text = "OPEN"
 			else
-				plot.shield.Transparency = 0.5
+				plot.shield.Transparency = 0.35
 				plot.shieldLabel.Text = "SHIELD " .. math.ceil(remaining) .. "s"
 			end
 		else
