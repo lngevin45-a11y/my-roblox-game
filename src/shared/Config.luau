@@ -98,9 +98,9 @@ Config.RAID = {
 Config.COLORS = {
 	Lane      = Color3.fromRGB(70, 110, 70),
 	Wall      = Color3.fromRGB(90, 90, 100),
-	PlotFloor = Color3.fromRGB(120, 120, 130),
+	PlotFloor = Color3.fromRGB(216, 197, 158),
 	Nest      = Color3.fromRGB(160, 120, 70),
-	Shield    = Color3.fromRGB(80, 180, 255),
+	Shield    = Color3.fromRGB(150, 215, 255),
 	CashPad   = Color3.fromRGB(60, 200, 120),
 }
 

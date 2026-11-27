@@ -32,10 +32,11 @@
         "$properties": {
           "Anchored": true,
           "Color": [
-            0.38823,
-            0.37254,
-            0.38823
+            0.314,
+            0.478,
+            0.196
           ],
+          "Material": "Grass",
           "Locked": true,
           "Position": [
             0,
@@ -57,7 +58,13 @@
           0,
           0
         ],
-        "Brightness": 2,
+        "OutdoorAmbient": [
+          0.45,
+          0.47,
+          0.55
+        ],
+        "Brightness": 2.5,
+        "EnvironmentDiffuseScale": 0.6,
         "GlobalShadows": true,
         "Outlines": false,
         "Technology": "Voxel"
