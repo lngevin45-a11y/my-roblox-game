@@ -45,6 +45,37 @@ local function makeTool(tier)
 	return tool
 end
 
+local function makeStunTool()
+	local tool = Instance.new("Tool")
+	tool.Name = "StunTool"
+	tool.RequiresHandle = true
+	tool:SetAttribute("StunTool", true)
+
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(1.2, 1.2, 1.2)
+	handle.Color = Color3.fromRGB(255, 80, 80)
+	handle.Material = Enum.Material.Neon
+	handle.CanCollide = false
+	handle.Parent = tool
+
+	local bg = Instance.new("BillboardGui")
+	bg.Size = UDim2.new(0, 120, 0, 30)
+	bg.StudsOffset = Vector3.new(0, 1.6, 0)
+	bg.AlwaysOnTop = true
+	bg.Parent = handle
+
+	local tl = Instance.new("TextLabel")
+	tl.Size = UDim2.new(1, 0, 1, 0)
+	tl.BackgroundTransparency = 1
+	tl.TextColor3 = Color3.new(1, 1, 1)
+	tl.TextStrokeTransparency = 0
+	tl.Text = "STUN"
+	tl.Parent = bg
+
+	return tool
+end
+
 local function assignPlot(G, player)
 	local plots = G.world.plots
 	for i = 1, G.world.plotCount do
@@ -81,6 +112,8 @@ function PlayerService.init(G)
 		for _, tier in ipairs(Config.FOOD_ORDER) do
 			makeTool(tier).Parent = backpack
 		end
+		-- Raid defense tool (knocks a carried egg loose)
+		makeStunTool().Parent = backpack
 
 		-- Initial HUD
 		sendHud(G, player, pdata)

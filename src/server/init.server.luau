@@ -8,6 +8,7 @@ local DataStore = require(script.DataStore)
 local PlayerService = require(script.PlayerService)
 local FoodSystem = require(script.FoodSystem)
 local CreatureSystem = require(script.CreatureSystem)
+local RaidSystem = require(script.RaidSystem)
 
 local G = Greybox.generate()
 G.DataStore = DataStore
@@ -15,5 +16,6 @@ G.DataStore = DataStore
 PlayerService.init(G)
 FoodSystem.init(G)
 CreatureSystem.init(G)
+RaidSystem.init(G)
 
 print("[BaitTameSteal] Server initialised on the linear Safari Lane.")

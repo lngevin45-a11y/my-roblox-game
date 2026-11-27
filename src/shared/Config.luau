@@ -7,6 +7,7 @@ local Config = {}
 -- RemoteEvent names (created at runtime by Greybox into ReplicatedStorage.Remotes)
 Config.REMOTES = {
 	ThrowFood = "ThrowFood", -- client -> server : (tier:string, dir:Vector3)
+	Stun = "Stun",           -- client -> server : (dir:Vector3)  -- raid defense tool
 	Hud = "Hud",             -- server -> client : (kind:string, payload:any)
 }
 
@@ -81,6 +82,17 @@ Config.TAME_MAX = 100
 Config.EGG_TICK = 1 -- seconds per cash accrual tick
 
 -- =========================================================================
+-- Raid / egg-theft tuning (System 3)
+-- =========================================================================
+Config.RAID = {
+	STEAL_HOLD = 2.5,       -- seconds a rival must hold the prompt to steal
+	CARRY_WALKSPEED = 8,    -- thief walk speed while carrying (default 16)
+	STUN_RANGE = 12,         -- reach of the stun/knockback tool
+	STUN_COOLDOWN = 1.5,     -- per-player stun cooldown
+	DEPOSIT_RADIUS = 9,      -- distance to own plot center to complete theft
+}
+
+-- =========================================================================
 -- Color palette for greybox geometry
 -- =========================================================================
 Config.COLORS = {
@@ -91,6 +103,16 @@ Config.COLORS = {
 	Shield    = Color3.fromRGB(80, 180, 255),
 	CashPad   = Color3.fromRGB(60, 200, 120),
 }
+
+-- Biome segments for the long multi-biome lane (ordered start -> far).
+Config.BIOMES = {
+	{ name = "Meadow",  color = Color3.fromRGB(95, 165, 85) },
+	{ name = "Forest",  color = Color3.fromRGB(40, 110, 55) },
+	{ name = "Desert",  color = Color3.fromRGB(210, 180, 110) },
+	{ name = "Tundra",  color = Color3.fromRGB(200, 220, 235) },
+	{ name = "Volcano", color = Color3.fromRGB(125, 45, 40) },
+}
+Config.FENCE_COLOR = Color3.fromRGB(120, 80, 45)
 
 -- =========================================================================
 -- Helpers

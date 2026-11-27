@@ -8,7 +8,7 @@
 | Area | Decision |
 |------|----------|
 | Persistence | **Real `DataStoreService`** (guarded `pcall`; no-ops with a warning in Studio until the place is published + API Services enabled). Cash, food inventory, and tamed creatures/eggs persist. |
-| Scope (this pass) | **Vertical slice**: the full `food → tame → nest → egg → cash` loop, server-authoritative. **Raiding + egg-theft deferred to next pass** (hooks left in). |
+| Scope (this pass) | **Full loop**: `food → tame → nest → egg → cash` **plus rival nest raiding & egg theft**, all server-authoritative. |
 | Map layout | **Linear "Safari Lane"** (player request — *no central zone*). A long corridor; base plots line one edge like stalls along a street; you throw food down the lane to lure roaming creatures. |
 | Movement | **Roblox Physics**: real physics food projectiles (initial velocity + gravity) and creatures that move toward food via `BodyVelocity`. |
 
@@ -44,6 +44,37 @@ Rojo maps:
 ### Core loop (playable now)
 Throw food → creature detects (radius) → moves (physics) → eats (tame fills, weighted by food tier) → at 100% rolls mutation (chance scales with food tiers eaten) → creature auto-returns to owner's nest → docked creature generates `$/sec` (tier × mutation mult) → owner clicks cash pad to collect. Tamed creatures persist via DataStore and re-dock on rejoin.
 
+## Art direction (locked from reference images)
+
+Established during the references-first pass. Used to upgrade the greybox visuals
+later — **not yet implemented in code**.
+
+- **Creatures / pets:** keep the rounded, friendly, Roblox-inspired look from the
+  creature sheet. Tiers (Common→Mythic) differ by color + ornament; mutations
+  (Golden / Shadow / Overcharged) are metallic / smoky / cyan-energy variants.
+- **Icons / HUD:** keep the icons the user liked (food chips, coin, etc.);
+  redesign the HUD around them in the visual pass.
+- **Base plots:** each base is a **square plot enclosed by a low fence** (a small
+  yard). The fence is intended to be **upgradable to expand the base** — deferred,
+  **do NOT implement yet**. The current code uses a plain floor pad + nest; the
+  fenced look is the target.
+- **Layout (cross-section: base camp at START + long multi-biome path):** players
+  spawn in a **base camp at the START** of the world — a cluster of fenced square
+  base plots (NOT spread along the path). From there, a REALLY long horizontal
+  **multi-biome path** extends forward, split into biome segments (meadow →
+  forest → desert → tundra → volcanic), each with its own look and (later) its own
+  creature-tier weighting / spawn table. Reference: `images/refs/map_overview.png`.
+  The current code uses a single 240-stud lane with 8 plots along one edge — replace
+  with base-camp + long multi-biome path when the visuals are built.
+  (Biome boundaries are a later build concern; for now just the art direction.)
+
+- **Creature modeling (pixelated / voxel, Steal-a-Brainrot-inspired):** **REAL
+  animals** in a chunky blocky voxel style, built from small cubes welded to a
+  root Part, flat bright colors, per-tier color + mutation recolor. **No brainrot
+  characters.** Tier → animal: Common=Rabbit, Uncommon=Fox, Rare=Wolf, Epic=Bear,
+  Mythic=Tiger. No external assets, no CSG union (keeps the multi-color pixelated
+  look). Reference: `images/refs/pet_real_animals.png`.
+
 ## Phase 4 — Verification (next steps)
 
 Studio playtest checklist:
@@ -54,8 +85,12 @@ Studio playtest checklist:
 5. Wait, then click your green cash pad → cash increases in the HUD; pending resets.
 6. Leave + rejoin (with API Services enabled + published) → tamed creatures re-dock and cash persists.
 
-### Deferred (next pass)
-Rival shield-expiry raiding: `ProximityPrompt` egg theft, walk-speed penalty while carrying, owner alert, stun/knockback tool that snaps the egg back, and permanent ownership transfer. Hooks already present: `plot.shieldUntil` (shield expiry), `plot.pendingCash`, and the plot ownership model.
+### Raiding & egg theft (implemented — `RaidSystem.luau`)
+- Every plot nest has a `ProximityPrompt` ("Hold to Steal Egg", hold = `Config.RAID.STEAL_HOLD`). Only rivals can trigger it; the **shield** blocks theft while active.
+- Stealing detaches the most valuable docked creature: its nest entry + egg are removed (owner's income stops) and the creature is **welded above the thief's head**; the thief is slowed to `RAID.CARRY_WALKSPEED`.
+- The thief must physically walk back into their **own base** (`RAID.DEPOSIT_RADIUS`) to bank it permanently — `CreatureSystem.bankStolen` re-docks it at their nest (income now theirs).
+- The victim's **Stun tool**: within `RAID.STUN_RANGE` it knocks the creature loose — the thief is frozen 2s, the creature's physics are restored and it **runs home** (re-using the returning AI) and re-docks.
+- If the thief dies or leaves mid-heist, the creature drops and runs home.
 
 ## Notes / caveats
 - The attached `superpowers-roblox.md` was empty (0 bytes) at upload time, so the four phases follow a standard Clarify→Design→Implement→Verify flow. Re-upload the file to align to its exact phases.
