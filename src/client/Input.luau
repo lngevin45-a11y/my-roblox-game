@@ -1,6 +1,7 @@
 --!nocheck
--- Input: wires food-tool activation to the server "ThrowFood" RemoteEvent.
--- Aiming uses the camera look vector, so you throw where you look down the lane.
+-- Input: wires food-tool activation to the server "ThrowFood" RemoteEvent, and the
+-- raid-defense "StunTool" to the "Stun" RemoteEvent. Aiming uses the camera look
+-- vector, so you throw / aim where you look down the lane.
 
 local Replicated = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -13,32 +14,41 @@ local Input = {}
 
 local wired = {} -- guard against double-wiring the same tool
 
-local function wireTool(throw, tool)
+local function wireTool(throw, stun, tool)
 	if not tool or wired[tool] then
 		return
 	end
-	if not tool:GetAttribute("FoodTier") then
-		return
+	local foodTier = tool:GetAttribute("FoodTier")
+	local isStun = tool:GetAttribute("StunTool")
+	if foodTier then
+		wired[tool] = true
+		tool.Activated:Connect(function()
+			local cam = Workspace.CurrentCamera
+			local dir = cam and cam.CFrame.LookVector or Vector3.new(0, 0, -1)
+			throw:FireServer(foodTier, dir)
+		end)
+	elseif isStun then
+		wired[tool] = true
+		tool.Activated:Connect(function()
+			local cam = Workspace.CurrentCamera
+			local dir = cam and cam.CFrame.LookVector or Vector3.new(0, 0, -1)
+			stun:FireServer(dir)
+		end)
 	end
-	wired[tool] = true
-	tool.Activated:Connect(function()
-		local cam = Workspace.CurrentCamera
-		local dir = cam and cam.CFrame.LookVector or Vector3.new(0, 0, -1)
-		throw:FireServer(tool:GetAttribute("FoodTier"), dir)
-	end)
 end
 
 function Input.init()
 	local player = Players.LocalPlayer
 	local remotes = Replicated:WaitForChild("Remotes")
 	local throw = remotes:WaitForChild(Config.REMOTES.ThrowFood)
+	local stun = remotes:WaitForChild(Config.REMOTES.Stun)
 
 	local backpack = player:WaitForChild("Backpack")
 	for _, t in ipairs(backpack:GetChildren()) do
-		wireTool(throw, t)
+		wireTool(throw, stun, t)
 	end
 	backpack.ChildAdded:Connect(function(t)
-		wireTool(throw, t)
+		wireTool(throw, stun, t)
 	end)
 end
 

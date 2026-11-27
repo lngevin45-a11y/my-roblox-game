@@ -39,7 +39,7 @@ local function spawnProjectile(G, player, tier, dir)
 
 	local p = Instance.new("Part")
 	p.Name = "Food_" .. tier
-	p.Shape = Enum.PartType.Ball
+	p.Shape = Enum.PartType.Block
 	p.Size = Vector3.new(food.radius * 2, food.radius * 2, food.radius * 2)
 	p.Color = food.color
 	p.Material = Enum.Material.Neon

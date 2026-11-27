@@ -38,6 +38,7 @@ function Greybox.generate()
 		return e
 	end
 	local ThrowFood = remote(Config.REMOTES.ThrowFood)
+	local Stun = remote(Config.REMOTES.Stun)
 	local Hud = remote(Config.REMOTES.Hud)
 
 	-- ----- World container -----
@@ -49,9 +50,13 @@ function Greybox.generate()
 	local laneHalfLen = M.LaneLength / 2
 	local laneHalfWid = M.LaneWidth / 2
 
-	-- Lane floor (top surface at y = 0). Edge "walls" are intentionally omitted:
-	-- tamed creatures must be able to cross from the lane to their plot nest.
-	makePart("Lane", Vector3.new(M.LaneLength, 2, M.LaneWidth), CFrame.new(0, -1, 0), Config.COLORS.Lane, world, true)
+	-- Lane floor split into biome segments along X (long multi-biome path).
+	local biomeCount = #Config.BIOMES
+	local segW = M.LaneLength / biomeCount
+	for i, biome in ipairs(Config.BIOMES) do
+		local cx = -laneHalfLen + segW * (i - 0.5)
+		makePart("Lane_" .. biome.name, Vector3.new(segW, 2, M.LaneWidth), CFrame.new(cx, -1, 0), biome.color, world, true)
+	end
 
 	-- Folders for dynamic objects
 	local creaturesFolder = Instance.new("Folder"); creaturesFolder.Name = "Creatures"; creaturesFolder.Parent = world
@@ -61,8 +66,27 @@ function Greybox.generate()
 	-- ----- Base plots along the -Z edge, spread along X -----
 	local plots = {}
 	local span = M.PlotCount * M.PlotWidth + (M.PlotCount - 1) * M.PlotGap
-	local startX = -span / 2 + M.PlotWidth / 2
+	local startX = -laneHalfLen + 6 -- cluster the base camp at the START of the path
 	local plotZ = -laneHalfWid - M.PlotDepth / 2 - 2
+
+	-- Builds a low wooden fence (visual only) around a plot footprint.
+	local function buildFence(plotModel, cx, cz, w, d)
+		local fh, post, step = 2, 0.4, 4
+		local function postAt(px, pz)
+			local p = Instance.new("Part")
+			p.Size = Vector3.new(post, fh, post)
+			p.Color = Config.FENCE_COLOR
+			p.Material = Enum.Material.Wood
+			p.Anchored = true
+			p.CanCollide = false
+			p.Position = Vector3.new(px, 1 + fh / 2, pz)
+			p.Parent = plotModel
+		end
+		local x0, x1 = cx - w / 2, cx + w / 2
+		local z0, z1 = cz - d / 2, cz + d / 2
+		for x = x0, x1, step do postAt(x, z0); postAt(x, z1) end
+		for z = z0, z1, step do postAt(x0, z); postAt(x1, z) end
+	end
 
 	for i = 1, M.PlotCount do
 		local x = startX + (i - 1) * (M.PlotWidth + M.PlotGap)
@@ -77,7 +101,7 @@ function Greybox.generate()
 
 		-- Nest pedestal (near the lane edge)
 		local nestPos = Vector3.new(x, 2.5, plotZ + M.PlotDepth / 2 - 3)
-		makePart("Nest", Vector3.new(4, 5, 4), CFrame.new(nestPos), Config.COLORS.Nest, plotModel, true)
+		local nestPart = makePart("Nest", Vector3.new(4, 5, 4), CFrame.new(nestPos), Config.COLORS.Nest, plotModel, true)
 
 		-- Cash-collection pad (front corner)
 		local cashPos = Vector3.new(x - M.PlotWidth / 2 + 3, 0.6, plotZ + M.PlotDepth / 2 - 2)
@@ -113,12 +137,16 @@ function Greybox.generate()
 		st.Text = "SHIELD"
 		st.Parent = sb
 
+		-- Visual fence around the plot (upgrade logic deferred).
+		buildFence(plotModel, x, plotZ, M.PlotWidth, M.PlotDepth)
+
 		local spawnPos = Vector3.new(x, 3, plotZ + M.PlotDepth / 2 - 4)
 
 		plots[i] = {
 			id = i,
 			center = center,
 			nestPos = nestPos,
+			nestPart = nestPart,
 			cashPad = cashPad,
 			shield = shield,
 			shieldLabel = st,
@@ -135,7 +163,7 @@ function Greybox.generate()
 		lane = { minX = -laneHalfLen, maxX = laneHalfLen, minZ = -laneHalfWid, maxZ = laneHalfWid, y = 0 },
 		plots = plots,
 		plotCount = M.PlotCount,
-		remotes = { ThrowFood = ThrowFood, Hud = Hud },
+		remotes = { ThrowFood = ThrowFood, Stun = Stun, Hud = Hud },
 		folders = { creatures = creaturesFolder, food = foodFolder, eggs = eggsFolder },
 	}
 end

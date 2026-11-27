@@ -41,23 +41,119 @@ local function makeBillboard(part, text)
 	return bg, tl
 end
 
-local function makeCreaturePart(tier, mutation, position)
-	local def = Config.CREATURES[tier]
+-- REAL animals in a chunky voxel style. Each tier maps to a distinct animal with
+-- its own silhouette, built from small cubes welded to a root Part.
+local TIER_ANIMAL = {
+	Common = "Rabbit", Uncommon = "Fox", Rare = "Wolf", Epic = "Bear", Mythic = "Tiger",
+}
+local ANIMAL_DEFS = {
+	Rabbit = { body = Vector3.new(1.8, 1.6, 2.2), head = Vector3.new(1.3, 1.3, 1.3), headOff = Vector3.new(0, 1.1, 1.1), ear = "long",   tail = "fluff", snout = false, stripes = false },
+	Fox    = { body = Vector3.new(2.0, 1.6, 2.4), head = Vector3.new(1.3, 1.3, 1.3), headOff = Vector3.new(0, 1.0, 1.2), ear = "pointy", tail = "bushy", snout = true,  stripes = false },
+	Wolf   = { body = Vector3.new(2.4, 1.8, 2.8), head = Vector3.new(1.4, 1.4, 1.4), headOff = Vector3.new(0, 1.2, 1.4), ear = "pointy", tail = "bushy", snout = true,  stripes = false },
+	Bear   = { body = Vector3.new(2.6, 2.2, 2.6), head = Vector3.new(1.7, 1.7, 1.6), headOff = Vector3.new(0, 1.5, 1.3), ear = "round",  tail = "short", snout = true,  stripes = false },
+	Tiger  = { body = Vector3.new(2.6, 1.8, 3.0), head = Vector3.new(1.6, 1.5, 1.5), headOff = Vector3.new(0, 1.3, 1.5), ear = "round",  tail = "bushy", snout = true,  stripes = true  },
+}
+
+local function cubePart(size, color)
 	local p = Instance.new("Part")
-	p.Name = "Creature_" .. tier
-	p.Size = Vector3.new(3, 3, 3)
-	p.Color = (mutation and Config.MUTATIONS[mutation].color) or def.color
+	p.Size = size
+	p.Color = color
 	p.Material = Enum.Material.SmoothPlastic
 	p.Anchored = false
-	p.CanCollide = true
-	p.Position = position
+	p.CanCollide = false
 	p.Parent = nil
+	return p
+end
+
+-- Builds a voxel real-animal model. Returns (model, root, bodyParts, bodyVelocity).
+local function makeCreatureModel(tier, mutation, position)
+	local animal = TIER_ANIMAL[tier] or "Rabbit"
+	local def = ANIMAL_DEFS[animal]
+	local base = (mutation and Config.MUTATIONS[mutation].color) or Config.CREATURES[tier].color
+	local dark = base:Lerp(Color3.new(0, 0, 0), 0.35)
+	local eye = Color3.new(0.05, 0.05, 0.08)
+
+	local model = Instance.new("Model")
+	model.Name = "Creature_" .. tier
+
+	local root = cubePart(def.body, base)
+	root.CanCollide = true
+	root.Position = position
+	root.Parent = model
+	model.PrimaryPart = root
+
+	local body = { root }
+	local function add(off, size, color)
+		local c = cubePart(size, color)
+		c.CFrame = root.CFrame * CFrame.new(off)
+		c.Parent = model
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = root
+		w.Part1 = c
+		w.Parent = c
+		return c
+	end
+
+	-- head
+	local head = add(def.headOff, def.head, base)
+	table.insert(body, head)
+	local hy, hz, hx = def.headOff.Y, def.headOff.Z, def.head.X
+
+	-- ears
+	if def.ear == "long" then
+		add(Vector3.new(-0.35, hy + def.head.Y / 2 + 0.7, hz), Vector3.new(0.4, 1.4, 0.4), base)
+		add(Vector3.new( 0.35, hy + def.head.Y / 2 + 0.7, hz), Vector3.new(0.4, 1.4, 0.4), base)
+	elseif def.ear == "pointy" then
+		add(Vector3.new(-0.45, hy + def.head.Y / 2 + 0.3, hz), Vector3.new(0.5, 0.7, 0.5), base)
+		add(Vector3.new( 0.45, hy + def.head.Y / 2 + 0.3, hz), Vector3.new(0.5, 0.7, 0.5), base)
+	elseif def.ear == "round" then
+		add(Vector3.new(-0.6, hy + def.head.Y / 2 + 0.05, hz), Vector3.new(0.6, 0.6, 0.5), base)
+		add(Vector3.new( 0.6, hy + def.head.Y / 2 + 0.05, hz), Vector3.new(0.6, 0.6, 0.5), base)
+	end
+
+	-- snout
+	if def.snout then
+		add(Vector3.new(0, hy - 0.1, hz + def.head.Z / 2 + 0.1), Vector3.new(def.head.X * 0.5, 0.5, 0.5), base)
+	end
+
+	-- eyes
+	add(Vector3.new(-0.4, hy + 0.1, hz + def.head.Z / 2 - 0.05), Vector3.new(0.3, 0.3, 0.2), eye)
+	add(Vector3.new( 0.4, hy + 0.1, hz + def.head.Z / 2 - 0.05), Vector3.new(0.3, 0.3, 0.2), eye)
+
+	-- legs (darker)
+	local ly = -def.body.Y / 2 - 0.4
+	local lx = def.body.X / 2 - 0.4
+	local lz = def.body.Z / 2 - 0.5
+	for _, o in ipairs({
+		Vector3.new(-lx, ly, lz), Vector3.new(lx, ly, lz),
+		Vector3.new(-lx, ly, -lz), Vector3.new(lx, ly, -lz),
+	}) do
+		add(o, Vector3.new(0.6, 0.9, 0.6), dark)
+	end
+
+	-- tail
+	if def.tail == "bushy" then
+		add(Vector3.new(0, 0.2, -def.body.Z / 2 - 0.6), Vector3.new(0.8, 0.8, 1.0), base)
+	elseif def.tail == "fluff" then
+		add(Vector3.new(0, def.body.Y / 2 + 0.2, -def.body.Z / 2 - 0.3), Vector3.new(0.7, 0.7, 0.7), base)
+	elseif def.tail == "short" then
+		add(Vector3.new(0, -0.2, -def.body.Z / 2 - 0.2), Vector3.new(0.5, 0.5, 0.5), base)
+	end
+
+	-- stripes (tiger)
+	if def.stripes then
+		for i = -1, 1 do
+			add(Vector3.new(-def.body.X / 2 - 0.01, 0.3, i * 0.6), Vector3.new(0.1, 0.6, 0.3), dark)
+			add(Vector3.new( def.body.X / 2 + 0.01, 0.3, i * 0.6), Vector3.new(0.1, 0.6, 0.3), dark)
+		end
+	end
 
 	local bv = Instance.new("BodyVelocity")
 	bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
 	bv.Velocity = Vector3.new(0, 0, 0)
-	bv.Parent = p
-	return p, bv
+	bv.Parent = root
+
+	return model, root, body, bv
 end
 
 -- ---------------------------------------------------------------------------
@@ -72,13 +168,15 @@ local function spawnCreature(G)
 	local x = math.random(lane.minX + 10, lane.maxX - 10)
 	local z = math.random(lane.minZ + 5, lane.maxZ - 5)
 
-	local part, bv = makeCreaturePart(tier, nil, Vector3.new(x, 2, z))
-	part.Parent = G.world.folders.creatures
+	local model, root, body, bv = makeCreatureModel(tier, nil, Vector3.new(x, 3, z))
+	model.Parent = G.world.folders.creatures
 
-	local bg, tl = makeBillboard(part, tier .. " 0%")
+	local bg, tl = makeBillboard(root, tier .. " 0%")
 
 	local cr = {
-		part = part,
+		part = root,
+		model = model,
+		body = body,
 		vel = bv,
 		tier = tier,
 		mutation = nil,
@@ -144,8 +242,10 @@ local function tameComplete(cr, G)
 		local opts = { "Golden", "Shadow", "Overcharged" }
 		mutation = opts[math.random(1, #opts)]
 		local mdef = Config.MUTATIONS[mutation]
-		if mdef.color then
-			cr.part.Color = mdef.color
+		if mdef and mdef.color then
+			for _, b in ipairs(cr.body) do
+				b.Color = mdef.color
+			end
 		end
 	end
 	cr.mutation = mutation
@@ -162,6 +262,26 @@ local function tameComplete(cr, G)
 		cr.mutation = nil
 		cr.label.Text = cr.tier .. " 0%"
 	end
+end
+
+-- Spawns a voxel egg on a nest pedestal (visual only; cash is tracked separately).
+local function spawnEgg(G, plot, slot, mutation)
+	plot.eggs = plot.eggs or {}
+	if plot.eggs[slot] and plot.eggs[slot].Parent then
+		plot.eggs[slot]:Destroy()
+	end
+	local mdef = Config.MUTATIONS[mutation] or Config.MUTATIONS.None
+	local egg = Instance.new("Part")
+	egg.Name = "Egg_" .. slot
+	egg.Shape = Enum.PartType.Block
+	egg.Size = Vector3.new(1.6, 1.6, 1.6)
+	egg.Color = mdef.color or Color3.fromRGB(245, 240, 230)
+	egg.Material = Enum.Material.SmoothPlastic
+	egg.Anchored = true
+	egg.CanCollide = false
+	egg.Position = plot.nestPos + Vector3.new(0, 3.4, 0)
+	egg.Parent = G.world.folders.eggs
+	plot.eggs[slot] = egg
 end
 
 -- ---------------------------------------------------------------------------
@@ -194,12 +314,23 @@ local function dock(cr, G)
 	pdata.nests[slot] = nestData
 
 	cr.dockSlot = slot
+	cr.plotId = plot.id
 	cr.state = "docked"
 	cr.part.CFrame = CFrame.new(plot.nestPos + Vector3.new(0, 2, 0))
 	cr.vel.Velocity = Vector3.new(0, 0, 0)
 	cr.label.Text = cr.tier .. " " .. (cr.mutation or "None") .. " $" .. Config.valueFor(cr.tier, cr.mutation or "None") .. "/s"
+	spawnEgg(G, plot, slot, cr.mutation or "None")
 
 	G.world.remotes.Hud:FireClient(cr.owner, "log", "Creature docked! Generating cash at your nest.")
+end
+
+-- Called by RaidSystem when a thief banks a stolen creature at their own base.
+-- cr.owner must already be reassigned to the thief; dock() does the rest
+-- (free-slot lookup, nest entries, egg visual, label).
+function CreatureSystem.bankStolen(cr, G)
+	cr.vel.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+	cr.tame = Config.TAME_MAX
+	dock(cr, G)
 end
 
 local function eggTick(G, dt)
@@ -220,6 +351,10 @@ end
 -- Per-frame stepping
 -- ---------------------------------------------------------------------------
 local function stepCreature(cr, G)
+	if cr.state == "carried" then
+		cr.vel.Velocity = Vector3.new(0, 0, 0)
+		return
+	end
 	if cr.state == "wild" then
 		if not cr.target or (cr.target.part and not cr.target.part.Parent) then
 			cr.target = pickTarget(cr)
@@ -337,12 +472,14 @@ function CreatureSystem.init(G)
 	local function onLoadNest(player, plot, slot, nest)
 		local tier = nest.tier
 		local mutation = nest.mutation or "None"
-		local part, bv = makeCreaturePart(tier, mutation, plot.nestPos + Vector3.new(0, 2, 0))
-		part.Parent = G.world.folders.creatures
+		local model, root, body, bv = makeCreatureModel(tier, mutation, plot.nestPos + Vector3.new(0, 3, 0))
+		model.Parent = G.world.folders.creatures
 
-		local bg, tl = makeBillboard(part, tier .. " " .. mutation .. " $" .. Config.valueFor(tier, mutation) .. "/s")
+		local bg, tl = makeBillboard(root, tier .. " " .. mutation .. " $" .. Config.valueFor(tier, mutation) .. "/s")
 		local cr = {
-			part = part,
+			part = root,
+			model = model,
+			body = body,
 			vel = bv,
 			tier = tier,
 			mutation = mutation,
@@ -351,11 +488,13 @@ function CreatureSystem.init(G)
 			state = "docked",
 			target = nil,
 			owner = player,
+			plotId = plot.id,
 			dockSlot = slot,
 			billboard = bg,
 			label = tl,
 		}
 		plot.nests[slot] = nest
+		spawnEgg(G, plot, slot, mutation)
 		table.insert(CreatureSystem.creatures, cr)
 	end
 
